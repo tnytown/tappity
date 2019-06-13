@@ -1,6 +1,7 @@
 #import <AppKit/AppKit.h>
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 
 #define CLIP(x, y) copysignf(fabs(x) <= y ? x : y, x);
@@ -18,24 +19,31 @@ CGEventRef onEvent(CGEventTapProxy proxy, CGEventType type, CGEventRef ref, void
   if(!(mask & NSEventMaskFromType([ev type])))
     return ref;
   
-  NSLog(@"onEvent: type = %lu, num = %lu", [ev type], [[ev allTouches] count]);
   if([[ev allTouches] count] < 1)
     return ref;
-  
-  NSTouch *touch = [[ev allTouches] anyObject];
-  NSPoint pos = [touch normalizedPosition];
-  NSLog(@"onEvent: touch = (%f, %f)", pos.x, pos.y);
 
-  // convert [0, 1] to [-1, 1] range
-  pos.x -= 0.5; pos.y -= 0.5;
-  pos.x *= 2; pos.y *= 2;
+  NSTouch *touch;
+  NSPoint pos;
 
-  // flip y axis
-  pos.y = -pos.y;
+  NSEnumerator *iter = [[ev allTouches] objectEnumerator];
+  while((touch = [iter nextObject])) {
+    pos = [touch normalizedPosition];
 
-  // clip to boundaries
-  pos.x = CLIP(pos.x, bound);
-  pos.y = CLIP(pos.y, bound);
+    // convert [0, 1] to [-1, 1] range
+    pos.x -= 0.5; pos.y -= 0.5;
+    pos.x *= 2; pos.y *= 2;
+
+    // flip y axis
+    pos.y = -pos.y;
+
+    // accept position as-is if it's within the bounds
+    if(fabs(pos.x) <= bound && fabs(pos.y) <= bound)
+      break;
+      
+    // clip to boundaries
+    pos.x = CLIP(pos.x, bound);
+    pos.y = CLIP(pos.y, bound);
+  }
 
   // rescale [-bound, bound] to [-1, 1] 
   pos.x /= bound; pos.y /= bound;
